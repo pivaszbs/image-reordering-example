@@ -1,9 +1,14 @@
-import React, {useEffect} from 'react';
-import type {DraggableSyntheticListeners} from '@dnd-kit/core';
-import type {Transform} from '@dnd-kit/utilities';
-import styles from './Item.module.css';
+import React, { useEffect } from "react";
+import type {
+  DraggableSyntheticListeners,
+  UniqueIdentifier,
+} from "@dnd-kit/core";
+import type { Transform } from "@dnd-kit/utilities";
+import styles from "./Item.module.css";
 
-import classNames from 'classnames';
+import classNames from "classnames";
+import { ItemWithId } from "../Sortable";
+import { RenderItem } from "../types";
 
 export interface Props {
   dragOverlay?: boolean;
@@ -13,7 +18,8 @@ export interface Props {
   handle?: boolean;
   handleProps?: any;
   height?: number;
-  index?: number;
+  index: number;
+  id: UniqueIdentifier;
   fadeIn?: boolean;
   transform?: Transform | null;
   listeners?: DraggableSyntheticListeners;
@@ -21,21 +27,9 @@ export interface Props {
   style?: React.CSSProperties;
   transition?: string | null;
   wrapperStyle?: React.CSSProperties;
-  value: React.ReactNode;
+  value: ItemWithId<unknown>;
   onRemove?(): void;
-  renderItem(args: {
-    dragOverlay: boolean;
-    dragging: boolean;
-    sorting: boolean;
-    index: number | undefined;
-    fadeIn: boolean;
-    listeners: DraggableSyntheticListeners;
-    ref: React.Ref<HTMLElement>;
-    style: React.CSSProperties | undefined;
-    transform: Props['transform'];
-    transition: Props['transition'];
-    value: Props['value'];
-  }): React.ReactElement;
+  renderItem: RenderItem<unknown>;
 }
 
 export const Item = React.memo(
@@ -70,10 +64,10 @@ export const Item = React.memo(
           return;
         }
 
-        document.body.style.cursor = 'grabbing';
+        document.body.style.cursor = "grabbing";
 
         return () => {
-          document.body.style.cursor = '';
+          document.body.style.cursor = "";
         };
       }, [dragOverlay]);
 
@@ -90,21 +84,21 @@ export const Item = React.memo(
               ...wrapperStyle,
               transition: [transition, wrapperStyle?.transition]
                 .filter(Boolean)
-                .join(', '),
-              '--translate-x': transform
+                .join(", "),
+              "--translate-x": transform
                 ? `${Math.round(transform.x)}px`
                 : undefined,
-              '--translate-y': transform
+              "--translate-y": transform
                 ? `${Math.round(transform.y)}px`
                 : undefined,
-              '--scale-x': transform?.scaleX
+              "--scale-x": transform?.scaleX
                 ? `${transform.scaleX}`
                 : undefined,
-              '--scale-y': transform?.scaleY
+              "--scale-y": transform?.scaleY
                 ? `${transform.scaleY}`
                 : undefined,
-              '--index': index,
-              '--color': color,
+              "--index": index,
+              "--color": color,
             } as React.CSSProperties
           }
           ref={ref}

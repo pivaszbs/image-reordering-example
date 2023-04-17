@@ -1,5 +1,5 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {createPortal} from 'react-dom';
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   Active,
@@ -12,16 +12,14 @@ import {
   KeyboardSensor,
   KeyboardCoordinateGetter,
   Modifiers,
-  MouseSensor,
   MeasuringConfiguration,
   PointerActivationConstraint,
   ScreenReaderInstructions,
-  TouchSensor,
   UniqueIdentifier,
   useSensor,
   useSensors,
   defaultDropAnimationSideEffects,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   useSortable,
@@ -31,13 +29,19 @@ import {
   rectSortingStrategy,
   AnimateLayoutChanges,
   NewIndexGetter,
-} from '@dnd-kit/sortable';
+} from "@dnd-kit/sortable";
 
-import {Item, List, Wrapper} from './components';
-import { createRange } from './createRange';
-import { VibroTouchSensor } from './VibroTouchSensor';
+import { Item, List, Wrapper } from "./components";
+import { createRange } from "./createRange";
+import { VibroTouchSensor } from "./VibroTouchSensor";
+import { RenderItem } from "./types";
 
-export interface Props {
+export type ItemWithId<T> = {
+  id: UniqueIdentifier;
+  value: T;
+};
+
+export interface Props<T> {
   activationConstraint?: PointerActivationConstraint;
   animateLayoutChanges?: AnimateLayoutChanges;
   adjustScale?: boolean;
@@ -48,10 +52,10 @@ export interface Props {
   getNewIndex?: NewIndexGetter;
   handle?: boolean;
   itemCount?: number;
-  items?: UniqueIdentifier[];
+  items?: T[];
   measuring?: MeasuringConfiguration;
   modifiers?: Modifiers;
-  renderItem?: any;
+  renderItem: RenderItem<T>;
   removable?: boolean;
   reorderItems?: typeof arrayMove;
   strategy?: SortingStrategy;
@@ -66,7 +70,7 @@ export interface Props {
     isDragging: boolean;
   }): React.CSSProperties;
   wrapperStyle?(args: {
-    active: Pick<Active, 'id'> | null;
+    active: Pick<Active, "id"> | null;
     index: number;
     isDragging: boolean;
     id: UniqueIdentifier;
@@ -78,7 +82,7 @@ const dropAnimationConfig: DropAnimation = {
   sideEffects: defaultDropAnimationSideEffects({
     styles: {
       active: {
-        opacity: '0.5',
+        opacity: "0.5",
       },
     },
   }),
@@ -92,7 +96,7 @@ const screenReaderInstructions: ScreenReaderInstructions = {
   `,
 };
 
-export function Sortable({
+export function Sortable<T extends ItemWithId<unknown>>({
   activationConstraint,
   animateLayoutChanges,
   adjustScale = false,
@@ -115,11 +119,14 @@ export function Sortable({
   style,
   useDragOverlay = true,
   wrapperStyle = () => ({}),
-}: Props) {
-  const [items, setItems] = useState<UniqueIdentifier[]>(
+}: Props<T>) {
+  const [items, setItems] = useState<T[]>(
     () =>
       initialItems ??
-      createRange<UniqueIdentifier>(itemCount, (index) => index + 1)
+      createRange(itemCount, (index) => ({
+        id: index,
+        value: null,
+      }))
   );
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const sensors = useSensors(
@@ -131,22 +138,23 @@ export function Sortable({
     })
   );
   const isFirstAnnouncement = useRef(true);
-  const getIndex = (id: UniqueIdentifier) => items.findIndex(item => item.id === id);
+  const getIndex = (id: UniqueIdentifier) =>
+    items.findIndex((item) => item.id === id);
   const getPosition = (id: UniqueIdentifier) => getIndex(id) + 1;
   const activeIndex = activeId ? getIndex(activeId) : -1;
   const handleRemove = removable
     ? (id: UniqueIdentifier) =>
-        setItems((items) => items.filter((item) => item !== id))
+        setItems((items) => items.filter((item) => item.id !== id))
     : undefined;
   const announcements: Announcements = {
-    onDragStart({active: {id}}) {
+    onDragStart({ active: { id } }) {
       return `Picked up sortable item ${String(
         id
       )}. Sortable item ${id} is in position ${getPosition(id)} of ${
         items.length
       }`;
     },
-    onDragOver({active, over}) {
+    onDragOver({ active, over }) {
       // In this specific use-case, the picked up item's `id` is always the same as the first `over` id.
       // The first `onDragOver` event therefore doesn't need to be announced, because it is called
       // immediately after the `onDragStart` announcement and is redundant.
@@ -163,7 +171,7 @@ export function Sortable({
 
       return;
     },
-    onDragEnd({active, over}) {
+    onDragEnd({ active, over }) {
       if (over) {
         return `Sortable item ${
           active.id
@@ -172,7 +180,7 @@ export function Sortable({
 
       return;
     },
-    onDragCancel({active: {id}}) {
+    onDragCancel({ active: { id } }) {
       return `Sorting was cancelled. Sortable item ${id} was dropped and returned to position ${getPosition(
         id
       )} of ${items.length}.`;
@@ -193,14 +201,14 @@ export function Sortable({
       }}
       sensors={sensors}
       collisionDetection={collisionDetection}
-      onDragStart={({active}) => {
+      onDragStart={({ active }) => {
         if (!active) {
           return;
         }
 
         setActiveId(active.id);
       }}
-      onDragEnd={({over}) => {
+      onDragEnd={({ over }) => {
         setActiveId(null);
 
         if (over) {
@@ -245,12 +253,13 @@ export function Sortable({
             >
               {activeId ? (
                 <Item
+                  id={activeId}
                   index={activeIndex}
                   value={items[activeIndex].value}
                   handle={handle}
-                  renderItem={renderItem}
+                  renderItem={renderItem as RenderItem<unknown>}
                   wrapperStyle={wrapperStyle({
-                    active: {id: activeId},
+                    active: { id: activeId },
                     index: activeIndex,
                     isDragging: true,
                     id: items[activeIndex].id,
@@ -274,7 +283,7 @@ export function Sortable({
   );
 }
 
-interface SortableItemProps {
+interface SortableItemProps<T> {
   animateLayoutChanges?: AnimateLayoutChanges;
   disabled?: boolean;
   getNewIndex?: NewIndexGetter;
@@ -284,11 +293,12 @@ interface SortableItemProps {
   useDragOverlay?: boolean;
   onRemove?(id: UniqueIdentifier): void;
   style(values: any): React.CSSProperties;
-  renderItem?(args: any): React.ReactElement;
-  wrapperStyle: Props['wrapperStyle'];
+  renderItem: RenderItem<T>;
+  value: T;
+  wrapperStyle: Props<T>["wrapperStyle"];
 }
 
-export function SortableItem({
+export function SortableItem<T extends ItemWithId<unknown>>({
   disabled,
   animateLayoutChanges,
   getNewIndex,
@@ -301,7 +311,7 @@ export function SortableItem({
   useDragOverlay,
   wrapperStyle,
   value,
-}: SortableItemProps) {
+}: SortableItemProps<T>) {
   const {
     active,
     attributes,
@@ -336,7 +346,7 @@ export function SortableItem({
             }
           : undefined
       }
-      renderItem={renderItem}
+      renderItem={renderItem as RenderItem<unknown>}
       index={index}
       style={style({
         index,
@@ -348,7 +358,7 @@ export function SortableItem({
       onRemove={onRemove ? () => onRemove(id) : undefined}
       transform={transform}
       transition={transition}
-      wrapperStyle={wrapperStyle?.({index, isDragging, active, id})}
+      wrapperStyle={wrapperStyle?.({ index, isDragging, active, id })}
       listeners={listeners}
       data-index={index}
       data-id={id}
